@@ -4,10 +4,11 @@
   "private": true,
   "description": "Animal Crossing-style 3D multiplayer village",
   "scripts": {
+    "postinstall": "cd server && npm install && cd ../client && npm install",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "cd server && node index.js",
     "client": "cd client && npx vite --host",
-    "build": "cd client && npm install && npx vite build",
+    "build": "cd client && npx vite build",
     "start": "cd server && node index.js"
   },
   "devDependencies": {
