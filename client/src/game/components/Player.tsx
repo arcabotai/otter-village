@@ -9,8 +9,20 @@ import { usePlayerStore } from '../../state/playerStore';
 import { useChatStore } from '../../state/chatStore';
 import { PlayerController } from '../controllers/PlayerController';
 
-// ── Species-specific ears ─────────────────────────────────────────
-function SpeciesEars({ species, mat }: { species: Species; mat: THREE.MeshStandardMaterial }) {
+// ── Shared toon gradient map ─────────────────────────────────────
+function createGradientMap(): THREE.DataTexture {
+  const colors = new Uint8Array([60, 130, 220]);
+  const tex = new THREE.DataTexture(colors, 3, 1, THREE.RedFormat);
+  tex.minFilter = THREE.NearestFilter;
+  tex.magFilter = THREE.NearestFilter;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+const gradientMap = createGradientMap();
+
+// ── Species-specific ears ────────────────────────────────────────
+function SpeciesEars({ species, mat }: { species: Species; mat: THREE.MeshToonMaterial }) {
   switch (species) {
     case 'otter':
       return (
@@ -79,7 +91,7 @@ function SpeciesEars({ species, mat }: { species: Species; mat: THREE.MeshStanda
         </>
       );
     case 'penguin':
-      return null; // No ears — has beak instead
+      return null;
     case 'deer':
       return (
         <>
@@ -94,8 +106,8 @@ function SpeciesEars({ species, mat }: { species: Species; mat: THREE.MeshStanda
   }
 }
 
-// ── Species-specific tail ─────────────────────────────────────────
-function SpeciesTail({ species, mat }: { species: Species; mat: THREE.MeshStandardMaterial }) {
+// ── Species-specific tail ────────────────────────────────────────
+function SpeciesTail({ species, mat }: { species: Species; mat: THREE.MeshToonMaterial }) {
   switch (species) {
     case 'otter':
       return (
@@ -144,7 +156,7 @@ function SpeciesTail({ species, mat }: { species: Species; mat: THREE.MeshStanda
   }
 }
 
-// ── Full animal character ─────────────────────────────────────────
+// ── Full animal character ────────────────────────────────────────
 function AnimalCharacter({
   species,
   bodyColor,
@@ -153,12 +165,12 @@ function AnimalCharacter({
   noseMat,
 }: {
   species: Species;
-  bodyColor: THREE.MeshStandardMaterial;
-  eyeWhiteMat: THREE.MeshStandardMaterial;
-  eyePupilMat: THREE.MeshStandardMaterial;
-  noseMat: THREE.MeshStandardMaterial;
+  bodyColor: THREE.MeshToonMaterial;
+  eyeWhiteMat: THREE.MeshToonMaterial;
+  eyePupilMat: THREE.MeshToonMaterial;
+  noseMat: THREE.MeshToonMaterial;
 }) {
-  const orangeMat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#ff8c00' }), []);
+  const orangeMat = useMemo(() => new THREE.MeshToonMaterial({ color: '#ff8c00', gradientMap }), []);
 
   return (
     <group>
@@ -216,19 +228,19 @@ function AnimalCharacter({
   );
 }
 
-// ── Local player ──────────────────────────────────────────────────
+// ── Local player ─────────────────────────────────────────────────
 export function LocalPlayer() {
   const rigidBodyRef = useRef<RapierRigidBody>(null);
   const displayName = usePlayerStore((s) => s.displayName);
   const appearance = usePlayerStore((s) => s.appearance);
 
   const bodyMat = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: appearance.bodyColor, roughness: 0.7, flatShading: true }),
+    () => new THREE.MeshToonMaterial({ color: appearance.bodyColor, gradientMap }),
     [appearance.bodyColor],
   );
-  const eyeWhiteMat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#ffffff' }), []);
-  const eyePupilMat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#111111' }), []);
-  const noseMat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#333333' }), []);
+  const eyeWhiteMat = useMemo(() => new THREE.MeshToonMaterial({ color: '#ffffff', gradientMap }), []);
+  const eyePupilMat = useMemo(() => new THREE.MeshToonMaterial({ color: '#111111', gradientMap }), []);
+  const noseMat = useMemo(() => new THREE.MeshToonMaterial({ color: '#333333', gradientMap }), []);
 
   return (
     <>

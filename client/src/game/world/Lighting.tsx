@@ -2,25 +2,27 @@ export function Lighting() {
   return (
     <>
       {/* Warm ambient fill */}
-      <ambientLight intensity={0.4} color="#fff8f0" />
+      <ambientLight color="#fff5e6" intensity={0.5} />
 
-      {/* Main sunlight — warm, from upper-right */}
+      {/* Main sun — warm golden, positioned for golden hour feel */}
       <directionalLight
+        color="#fff0d4"
         intensity={1.0}
-        position={[40, 60, 30]}
-        color="#fff5e6"
+        position={[40, 50, 30]}
       />
 
-      {/* Hemisphere: sky blue top, dark green ground bounce */}
+      {/* Hemisphere: sky blue top, earthy green bottom */}
       <hemisphereLight
-        args={['#87ceeb', '#3a5a2a', 0.3]}
+        color="#b1e1ff"
+        groundColor="#5a7a3a"
+        intensity={0.4}
       />
 
-      {/* Soft warm fill from opposite side */}
+      {/* Secondary fill from opposite side (softer) */}
       <directionalLight
-        intensity={0.15}
+        color="#e0e8ff"
+        intensity={0.3}
         position={[-30, 20, -20]}
-        color="#ffe0c0"
       />
     </>
   );

@@ -6,10 +6,10 @@ export function Sky() {
   const { scene } = useThree();
 
   useMemo(() => {
-    // Warm sky gradient background
-    scene.background = new THREE.Color('#a0d4f0');
-    // Soft exponential fog for distance fade
-    scene.fog = new THREE.FogExp2('#c8dff0', 0.012);
+    // Warm sky background matching horizon
+    scene.background = new THREE.Color('#a1c6ea');
+    // Warm fog matching the horizon
+    scene.fog = new THREE.Fog('#ffd4a6', 30, 100);
   }, [scene]);
 
   return null;

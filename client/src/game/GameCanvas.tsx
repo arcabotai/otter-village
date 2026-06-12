@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Physics } from '@react-three/rapier';
+import * as THREE from 'three';
 import { World } from './components/World';
 import { LocalPlayer } from './components/Player';
 import { RemotePlayers } from './components/RemotePlayers';
@@ -25,8 +26,13 @@ export function GameCanvas() {
       <Canvas
         shadows={false}
         dpr={[1, Math.min(dpr, 1.5)]}
-        camera={{ fov: 55, near: 0.1, far: 250 }}
-        gl={{ antialias: false, powerPreference: 'high-performance' }}
+        camera={{ fov: 50, near: 0.1, far: 250, position: [0, 12, 16] }}
+        gl={{
+          antialias: false,
+          powerPreference: 'high-performance',
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 1.2,
+        }}
         style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
       >
         <Suspense fallback={null}>
