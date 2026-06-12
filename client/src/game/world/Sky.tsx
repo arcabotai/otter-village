@@ -5,10 +5,11 @@ import * as THREE from 'three';
 export function Sky() {
   const { scene } = useThree();
 
-  // Set scene background to a sky color and add fog
   useMemo(() => {
-    scene.background = new THREE.Color('#87ceeb');
-    scene.fog = new THREE.FogExp2('#87ceeb', 0.008);
+    // Warm sky gradient background
+    scene.background = new THREE.Color('#a0d4f0');
+    // Soft exponential fog for distance fade
+    scene.fog = new THREE.FogExp2('#c8dff0', 0.012);
   }, [scene]);
 
   return null;

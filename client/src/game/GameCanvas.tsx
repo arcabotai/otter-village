@@ -19,14 +19,13 @@ import { useChatStore } from '../state/chatStore';
 
 export function GameCanvas() {
   const dpr = useSettingsStore((s) => s.dpr);
-  const chatOpen = useChatStore((s) => s.isOpen);
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
       <Canvas
         shadows={false}
         dpr={[1, Math.min(dpr, 1.5)]}
-        camera={{ fov: 50, near: 0.1, far: 200 }}
+        camera={{ fov: 55, near: 0.1, far: 250 }}
         gl={{ antialias: false, powerPreference: 'high-performance' }}
         style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
       >
