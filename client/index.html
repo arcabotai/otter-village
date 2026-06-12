@@ -23,15 +23,42 @@
 
     <!-- Login screen -->
     <div id="login">
-      <div class="login-card">
-        <h1>🦦 Otter Village</h1>
-        <p>A cozy multiplayer world</p>
-        <input type="text" id="nameInput" placeholder="Your name..." maxlength="16" autocomplete="off" spellcheck="false" />
-        <div class="animal-select">
-          <span class="label">Choose your animal</span>
-          <div class="animal-grid" id="animalGrid"></div>
-        </div>
-        <button id="joinBtn">Enter Village</button>
+      <div class="login-shell">
+        <section class="login-intro" aria-label="Otter Village introduction">
+          <div class="eyebrow">Arca micro-world · live prototype</div>
+          <h1>Otter Village</h1>
+          <p class="intro-copy">A tiny multiplayer meadow for quick hangs, soft chaos, and riverbank agents.</p>
+          <div class="feature-row" aria-label="Game features">
+            <span>🦦 choose a critter</span>
+            <span>💬 chat live</span>
+            <span>🌿 wander together</span>
+          </div>
+          <div class="village-preview" aria-hidden="true">
+            <span class="preview-sun"></span>
+            <span class="preview-cloud cloud-one"></span>
+            <span class="preview-cloud cloud-two"></span>
+            <span class="preview-hill hill-back"></span>
+            <span class="preview-hill hill-front"></span>
+            <span class="preview-river"></span>
+            <span class="preview-house">⌂</span>
+            <span class="preview-tree tree-one">♣</span>
+            <span class="preview-tree tree-two">♣</span>
+            <span class="preview-otter">🦦</span>
+          </div>
+        </section>
+
+        <section class="login-card" aria-label="Join Otter Village">
+          <div class="card-icon">🦦</div>
+          <h2>Join the village</h2>
+          <p>Pick a name, choose your critter, and step into the meadow.</p>
+          <label class="field-label" for="nameInput">Display name</label>
+          <input type="text" id="nameInput" placeholder="River name..." maxlength="16" autocomplete="off" spellcheck="false" />
+          <div class="animal-select">
+            <span class="label">Choose your animal</span>
+            <div class="animal-grid" id="animalGrid"></div>
+          </div>
+          <button id="joinBtn">Enter Village <span>→</span></button>
+        </section>
       </div>
     </div>
 

@@ -82,6 +82,7 @@ class Game {
     this.toonGradient = null;
     this.cloudMesh = null;
     this.isPortrait = false;
+    this.worldLoadTimer = null;
     // Touch / joystick state
     this.touchJoystick = { active: false, startX: 0, startY: 0, dx: 0, dy: 0 };
     this.emoteMenuOpen = false;
@@ -131,15 +132,14 @@ class Game {
     this.initInput();
     this.initNetwork();
 
-    // Hide loading after world loads
-    this.socket.on('world', () => {
-      setTimeout(() => {
-        document.getElementById('loadingOverlay').classList.add('hidden');
-        document.getElementById('hud').classList.remove('hidden');
-      }, 600);
-    });
-
     this.animate();
+  }
+
+  showGame() {
+    setTimeout(() => {
+      document.getElementById('loadingOverlay').classList.add('hidden');
+      document.getElementById('hud').classList.remove('hidden');
+    }, 450);
   }
 
   initThree() {
@@ -236,6 +236,7 @@ class Game {
         : window.location.origin);
 
     this.socket = io(backendUrl, {
+      autoConnect: false,
       transports: ['websocket', 'polling']
     });
 
@@ -244,7 +245,16 @@ class Game {
       this.socket.emit('join', { name: this.myName, animal: this.myAnimal });
     });
 
+    this.socket.on('connect_error', (error) => {
+      console.error('Connection failed:', error?.message || error);
+      document.getElementById('loadingOverlay').querySelector('p').textContent = 'Could not reach the village. Try again in a moment.';
+    });
+
     this.socket.on('world', (data) => {
+      if (this.worldLoadTimer) {
+        clearTimeout(this.worldLoadTimer);
+        this.worldLoadTimer = null;
+      }
       this.buildWorld(data);
       // Init local player
       const myData = data.players[this.myId];
@@ -256,6 +266,7 @@ class Game {
       // Chat history
       data.chatHistory?.forEach(m => this.addChatMessage(m, false));
       this.updatePlayerList();
+      this.showGame();
     });
 
     this.socket.on('playerJoined', (p) => {
@@ -298,6 +309,15 @@ class Game {
       if (id === this.myId) return;
       this.showEmote(id, emote);
     });
+
+    this.worldLoadTimer = setTimeout(() => {
+      const message = document.getElementById('loadingOverlay')?.querySelector('p');
+      if (message) message.textContent = 'Connected, but the village did not answer. Please refresh and try again.';
+    }, 8000);
+
+    // Connect only after all event handlers are registered.
+    // Socket.io can emit the initial world state immediately after join.
+    this.socket.connect();
   }
 
   // ════════════════════════════════════════════════
