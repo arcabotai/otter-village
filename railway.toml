@@ -1,6 +1,6 @@
 [build]
 builder = "nixpacks"
-buildCommand = "cd server && npm install && npx tsc"
+buildCommand = "npm install && cd shared && npm install && npx tsc && cd ../server && npm install && npx tsc"
 root = "/"
 
 [deploy]
