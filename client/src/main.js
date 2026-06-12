@@ -91,13 +91,22 @@ class Game {
     this.myName = name;
     this.myAnimal = this.selectedAnimal;
 
-    // Hide login, show HUD
+    // Show loading
     document.getElementById('login').classList.add('hidden');
-    document.getElementById('hud').classList.remove('hidden');
+    document.getElementById('loadingOverlay').classList.remove('hidden');
 
     this.initThree();
     this.initInput();
     this.initNetwork();
+
+    // Hide loading after world loads
+    this.socket.on('world', () => {
+      setTimeout(() => {
+        document.getElementById('loadingOverlay').classList.add('hidden');
+        document.getElementById('hud').classList.remove('hidden');
+      }, 600);
+    });
+
     this.animate();
   }
 
@@ -155,11 +164,13 @@ class Game {
   //  NETWORKING
   // ════════════════════════════════════════════════
   initNetwork() {
-    const url = window.location.hostname === 'localhost'
-      ? 'http://localhost:3001'
-      : window.location.origin;
+    // Support cross-origin: Vercel frontend → Railway backend
+    const backendUrl = import.meta.env.VITE_BACKEND_URL ||
+      (window.location.hostname === 'localhost'
+        ? 'http://localhost:3001'
+        : window.location.origin);
 
-    this.socket = io(url, {
+    this.socket = io(backendUrl, {
       transports: ['websocket', 'polling']
     });
 

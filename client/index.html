@@ -4,22 +4,30 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Otter Village 🦦</title>
+  <meta name="description" content="A cozy 3D multiplayer village — Animal Crossing style. Walk around, chat, and hang out with friends." />
+  <meta name="theme-color" content="#1a3a0a" />
   <link rel="stylesheet" href="/src/style.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦦</text></svg>">
 </head>
 <body>
   <div id="app">
+    <!-- Loading overlay -->
+    <div id="loadingOverlay" class="hidden">
+      <div class="loading-spinner"></div>
+      <p>Entering the village...</p>
+    </div>
+
     <!-- Login screen -->
     <div id="login">
       <div class="login-card">
         <h1>🦦 Otter Village</h1>
         <p>A cozy multiplayer world</p>
-        <input type="text" id="nameInput" placeholder="Your name..." maxlength="16" autocomplete="off" />
+        <input type="text" id="nameInput" placeholder="Your name..." maxlength="16" autocomplete="off" spellcheck="false" />
         <div class="animal-select">
-          <span class="label">Choose your animal:</span>
+          <span class="label">Choose your animal</span>
           <div class="animal-grid" id="animalGrid"></div>
         </div>
-        <button id="joinBtn">Join Village</button>
+        <button id="joinBtn">Enter Village</button>
       </div>
     </div>
 
@@ -38,19 +46,19 @@
       <!-- Chat -->
       <div id="chatBox">
         <div id="chatMessages"></div>
-        <input type="text" id="chatInput" placeholder="Press Enter to chat..." maxlength="200" autocomplete="off" />
+        <input type="text" id="chatInput" placeholder="Press Enter to chat..." maxlength="200" autocomplete="off" spellcheck="false" />
       </div>
 
       <!-- Emote bar -->
       <div id="emoteBar">
-        <button class="emote-btn" data-emote="wave">👋</button>
-        <button class="emote-btn" data-emote="heart">❤️</button>
-        <button class="emote-btn" data-emote="laugh">😂</button>
-        <button class="emote-btn" data-emote="sad">😢</button>
-        <button class="emote-btn" data-emote="angry">😠</button>
-        <button class="emote-btn" data-emote="dance">💃</button>
-        <button class="emote-btn" data-emote="sleep">😴</button>
-        <button class="emote-btn" data-emote="wave2">🖐️</button>
+        <button class="emote-btn" data-emote="wave" title="Wave (1)">👋</button>
+        <button class="emote-btn" data-emote="heart" title="Heart (2)">❤️</button>
+        <button class="emote-btn" data-emote="laugh" title="Laugh (3)">😂</button>
+        <button class="emote-btn" data-emote="sad" title="Sad (4)">😢</button>
+        <button class="emote-btn" data-emote="angry" title="Angry (5)">😠</button>
+        <button class="emote-btn" data-emote="dance" title="Dance (6)">💃</button>
+        <button class="emote-btn" data-emote="sleep" title="Sleep (7)">😴</button>
+        <button class="emote-btn" data-emote="wave2" title="High Five (8)">🖐️</button>
       </div>
 
       <!-- Player list -->
@@ -61,7 +69,7 @@
 
       <!-- Controls hint -->
       <div id="controls">
-        WASD/Arrows: Move · Enter: Chat · 1-8: Emotes
+        WASD / Arrows: Move · Enter: Chat · 1–8: Emotes
       </div>
     </div>
   </div>
