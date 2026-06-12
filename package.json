@@ -1,0 +1,25 @@
+{
+  "name": "otter-village",
+  "version": "2.0.0",
+  "private": true,
+  "description": "A mobile-first 3D multiplayer social village game",
+  "scripts": {
+    "dev": "concurrently -n client,server -c cyan,green \"npm run dev:client\" \"npm run dev:server\"",
+    "dev:client": "cd client && npm run dev",
+    "dev:server": "cd server && npm run dev",
+    "build": "npm run build:shared && npm run build:client && npm run build:server",
+    "build:shared": "cd shared && npm run build",
+    "build:client": "cd client && npm run build",
+    "build:server": "cd server && npm run build",
+    "start": "cd server && npm start",
+    "typecheck": "npm run typecheck:shared && npm run typecheck:client && npm run typecheck:server",
+    "typecheck:shared": "cd shared && npx tsc --noEmit",
+    "typecheck:client": "cd client && npx tsc --noEmit",
+    "typecheck:server": "cd server && npx tsc --noEmit",
+    "clean": "rm -rf client/dist server/dist shared/dist"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "typescript": "^5.7.0"
+  }
+}
