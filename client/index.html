@@ -2,12 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>Otter Village 🦦</title>
   <meta name="description" content="A cozy 3D multiplayer village — Animal Crossing style. Walk around, chat, and hang out with friends." />
   <meta name="theme-color" content="#1a3a0a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Otter Village" />
   <link rel="stylesheet" href="/src/style.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦦</text></svg>">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦦</text></svg>">
 </head>
 <body>
   <div id="app">
@@ -34,6 +38,9 @@
     <!-- Game canvas -->
     <canvas id="gameCanvas"></canvas>
 
+    <!-- Virtual joystick zone (mobile) -->
+    <div id="joystickZone"></div>
+
     <!-- HUD overlay -->
     <div id="hud" class="hidden">
       <!-- Top bar -->
@@ -43,10 +50,16 @@
         <div id="clock">☀️ Day</div>
       </div>
 
+      <!-- Player list (top-right dropdown) -->
+      <div id="playerList">
+        <button id="playerListToggle" class="player-list-header">Villagers <span id="playerListArrow">▾</span></button>
+        <div id="playerListItems" class="player-list-body"></div>
+      </div>
+
       <!-- Chat -->
       <div id="chatBox">
         <div id="chatMessages"></div>
-        <input type="text" id="chatInput" placeholder="Press Enter to chat..." maxlength="200" autocomplete="off" spellcheck="false" />
+        <input type="text" id="chatInput" placeholder="Tap to chat..." maxlength="200" autocomplete="off" spellcheck="false" />
       </div>
 
       <!-- Emote bar -->
@@ -61,13 +74,7 @@
         <button class="emote-btn" data-emote="wave2" title="High Five (8)">🖐️</button>
       </div>
 
-      <!-- Player list -->
-      <div id="playerList">
-        <div class="player-list-header">Villagers</div>
-        <div id="playerListItems"></div>
-      </div>
-
-      <!-- Controls hint -->
+      <!-- Controls hint (desktop only) -->
       <div id="controls">
         WASD / Arrows: Move · Enter: Chat · 1–8: Emotes
       </div>

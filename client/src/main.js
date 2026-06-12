@@ -12,11 +12,21 @@ const ANIMALS = {
 const EMOTE_LIST = ['wave','heart','laugh','sad','angry','dance','sleep','wave2'];
 const MOVE_SPEED = 8;
 const ROTATE_SPEED = 8;
-const CAMERA_DISTANCE = 18;
-const CAMERA_HEIGHT = 14;
 const CAMERA_ANGLE = Math.PI / 6;
 const LERP_SPEED = 12;
 const SEND_RATE = 1 / 20; // 20 Hz position updates
+
+// Portrait-adaptive camera defaults
+const CAMERA = {
+  portrait:  { fov: 45, distance: 14, height: 12 },
+  landscape: { fov: 35, distance: 18, height: 14 },
+};
+
+// Detect mobile
+const IS_MOBILE = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+// Sky color constant
+const SKY_COLOR = new THREE.Color(0x87CEEB);
 
 // ── Seeded RNG ──
 function mulberry32(a) {
@@ -26,6 +36,22 @@ function mulberry32(a) {
     t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
     return ((t ^ t >>> 14) >>> 0) / 4294967296;
   };
+}
+
+// ── Toon gradient texture (3-step) ──
+function createToonGradientMap() {
+  const size = 4;
+  const data = new Uint8Array(size);
+  // dark → mid → bright → bright
+  data[0] = 100;
+  data[1] = 180;
+  data[2] = 230;
+  data[3] = 255;
+  const tex = new THREE.DataTexture(data, size, 1, THREE.RedFormat);
+  tex.minFilter = THREE.NearestFilter;
+  tex.magFilter = THREE.NearestFilter;
+  tex.needsUpdate = true;
+  return tex;
 }
 
 class Game {
@@ -53,6 +79,12 @@ class Game {
     this.playerMeshes = new Map();
     this.chatBubbles = new Map();
     this.emoteMeshes = new Map();
+    this.toonGradient = null;
+    this.cloudMesh = null;
+    this.isPortrait = false;
+    // Touch / joystick state
+    this.touchJoystick = { active: false, startX: 0, startY: 0, dx: 0, dy: 0 };
+    this.emoteMenuOpen = false;
   }
 
   // ════════════════════════════════════════════════
@@ -112,30 +144,41 @@ class Game {
 
   initThree() {
     const canvas = document.getElementById('gameCanvas');
+    const fogColor = SKY_COLOR.clone();
 
     // Scene
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.FogExp2(0x87CEEB, 0.008);
+    this.scene.fog = new THREE.FogExp2(fogColor, 0.012);
+
+    // Detect orientation
+    this.isPortrait = window.innerHeight > window.innerWidth;
 
     // Renderer
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    const maxDPR = IS_MOBILE ? 1.5 : 2;
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: !IS_MOBILE });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, maxDPR));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.2;
+    this.renderer.setClearColor(fogColor);
 
-    // Camera (isometric-style)
-    this.camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 200);
-    this.camera.position.set(CAMERA_DISTANCE, CAMERA_HEIGHT, CAMERA_DISTANCE);
+    // Camera (isometric-style, adaptive)
+    const camCfg = this.isPortrait ? CAMERA.portrait : CAMERA.landscape;
+    this.camera = new THREE.PerspectiveCamera(camCfg.fov, window.innerWidth / window.innerHeight, 0.1, 200);
+    this.camera.position.set(camCfg.distance, camCfg.height, camCfg.distance);
     this.camera.lookAt(0, 0, 0);
+
+    // Toon gradient texture
+    this.toonGradient = createToonGradientMap();
 
     // Lighting
     this.ambientLight = new THREE.AmbientLight(0x404060, 0.4);
     this.scene.add(this.ambientLight);
 
-    this.hemisphereLight = new THREE.HemisphereLight(0x87CEEB, 0x3a5f0b, 0.6);
+    // Warmer hemisphere light
+    this.hemisphereLight = new THREE.HemisphereLight(0x9ec5e8, 0x4a6f1a, 0.65);
     this.scene.add(this.hemisphereLight);
 
     this.sunLight = new THREE.DirectionalLight(0xfff4e6, 1.2);
@@ -149,15 +192,37 @@ class Game {
     this.sunLight.shadow.camera.right = 40;
     this.sunLight.shadow.camera.top = 40;
     this.sunLight.shadow.camera.bottom = -40;
-    this.sunLight.shadow.bias = -0.001;
+    this.sunLight.shadow.bias = -0.0005;
+    this.sunLight.shadow.normalBias = 0.02;
     this.scene.add(this.sunLight);
 
     // Window resize
-    window.addEventListener('resize', () => {
-      this.camera.aspect = window.innerWidth / window.innerHeight;
-      this.camera.updateProjectionMatrix();
-      this.renderer.setSize(window.innerWidth, window.innerHeight);
-    });
+    window.addEventListener('resize', () => this._onResize());
+
+    // Show joystick zone on mobile
+    if (IS_MOBILE) {
+      const jz = document.getElementById('joystickZone');
+      if (jz) jz.style.display = 'block';
+    }
+
+    // Player list toggle
+    const plToggle = document.getElementById('playerListToggle');
+    if (plToggle) {
+      plToggle.addEventListener('click', () => {
+        document.getElementById('playerList').classList.toggle('open');
+      });
+    }
+  }
+
+  _onResize() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    this.isPortrait = h > w;
+    const camCfg = this.isPortrait ? CAMERA.portrait : CAMERA.landscape;
+    this.camera.fov = camCfg.fov;
+    this.camera.aspect = w / h;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(w, h);
   }
 
   // ════════════════════════════════════════════════
@@ -239,11 +304,12 @@ class Game {
   //  WORLD BUILDING
   // ════════════════════════════════════════════════
   buildWorld(data) {
-    // Sky gradient
+    // Sky gradient with more color stops
     const skyGeo = new THREE.SphereGeometry(90, 32, 16);
     const skyMat = new THREE.ShaderMaterial({
       uniforms: {
-        topColor: { value: new THREE.Color(0x4a90d9) },
+        topColor: { value: new THREE.Color(0x2a6fd9) },
+        midColor: { value: new THREE.Color(0x6aabe5) },
         bottomColor: { value: new THREE.Color(0x87CEEB) },
         offset: { value: 10 },
         exponent: { value: 0.6 }
@@ -258,34 +324,63 @@ class Game {
       `,
       fragmentShader: `
         uniform vec3 topColor;
+        uniform vec3 midColor;
         uniform vec3 bottomColor;
         uniform float offset;
         uniform float exponent;
         varying vec3 vWorldPos;
         void main() {
           float h = normalize(vWorldPos + offset).y;
-          gl_FragColor = vec4(mix(bottomColor, topColor, max(pow(max(h, 0.0), exponent), 0.0)), 1.0);
+          float t = max(pow(max(h, 0.0), exponent), 0.0);
+          vec3 col;
+          if (t < 0.5) {
+            col = mix(bottomColor, midColor, t * 2.0);
+          } else {
+            col = mix(midColor, topColor, (t - 0.5) * 2.0);
+          }
+          gl_FragColor = vec4(col, 1.0);
         }
       `,
       side: THREE.BackSide
     });
     this.scene.add(new THREE.Mesh(skyGeo, skyMat));
 
+    // Animated cloud layer
+    this._addCloudLayer();
+
     // Ground
     const groundSize = data.worldSize || 80;
     const groundGeo = new THREE.PlaneGeometry(groundSize, groundSize, 64, 64);
-    // Gentle terrain noise
+    // Gentle terrain noise with vertex color variation
     const posAttr = groundGeo.attributes.position;
-    for (let i = 0; i < posAttr.count; i++) {
+    const vertCount = posAttr.count;
+    const colors = new Float32Array(vertCount * 3);
+    const baseColor = new THREE.Color(0x5daa3d);
+    const darkColor = new THREE.Color(0x4a8a30);
+    const lightColor = new THREE.Color(0x6ec050);
+
+    for (let i = 0; i < vertCount; i++) {
       const x = posAttr.getX(i);
       const y = posAttr.getY(i);
-      const noise = Math.sin(x * 0.3) * Math.cos(y * 0.3) * 0.3 +
-                    Math.sin(x * 0.7 + 1.5) * Math.cos(y * 0.5 + 2.1) * 0.15;
+      // Smoother terrain noise
+      const noise = Math.sin(x * 0.3) * Math.cos(y * 0.3) * 0.25 +
+                    Math.sin(x * 0.7 + 1.5) * Math.cos(y * 0.5 + 2.1) * 0.12 +
+                    Math.sin(x * 0.15 + 3.0) * Math.cos(y * 0.12 + 1.0) * 0.18;
       posAttr.setZ(i, noise);
+
+      // Vertex color variation
+      const colorNoise = Math.sin(x * 1.3 + y * 0.7) * 0.5 + 0.5;
+      const c = colorNoise > 0.5
+        ? baseColor.clone().lerp(lightColor, (colorNoise - 0.5) * 2)
+        : darkColor.clone().lerp(baseColor, colorNoise * 2);
+      colors[i * 3] = c.r;
+      colors[i * 3 + 1] = c.g;
+      colors[i * 3 + 2] = c.b;
     }
+    groundGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     groundGeo.computeVertexNormals();
 
-    const groundMat = new THREE.MeshLambertMaterial({ color: 0x5daa3d });
+    const groundMat = new THREE.MeshLambertMaterial({ vertexColors: true });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
@@ -306,6 +401,46 @@ class Game {
 
     // World objects
     data.objects?.forEach(obj => this.addObject(obj));
+  }
+
+  _addCloudLayer() {
+    // Semi-transparent cloud plane that rotates slowly
+    const cloudGeo = new THREE.PlaneGeometry(120, 120);
+    // Create a simple cloud texture procedurally
+    const cloudCanvas = document.createElement('canvas');
+    cloudCanvas.width = 256;
+    cloudCanvas.height = 256;
+    const ctx = cloudCanvas.getContext('2d');
+
+    // Draw some puffy cloud shapes
+    ctx.fillStyle = 'rgba(255,255,255,0)';
+    ctx.fillRect(0, 0, 256, 256);
+    for (let i = 0; i < 20; i++) {
+      const cx = Math.random() * 256;
+      const cy = Math.random() * 256;
+      const r = 20 + Math.random() * 40;
+      const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+      gradient.addColorStop(0, 'rgba(255,255,255,0.12)');
+      gradient.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    const cloudTex = new THREE.CanvasTexture(cloudCanvas);
+    cloudTex.wrapS = cloudTex.wrapT = THREE.RepeatWrapping;
+    const cloudMat = new THREE.MeshBasicMaterial({
+      map: cloudTex,
+      transparent: true,
+      opacity: 0.5,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    this.cloudMesh = new THREE.Mesh(cloudGeo, cloudMat);
+    this.cloudMesh.rotation.x = -Math.PI / 2;
+    this.cloudMesh.position.y = 50;
+    this.scene.add(this.cloudMesh);
   }
 
   addObject(obj) {
@@ -333,7 +468,7 @@ class Game {
   createTree(obj) {
     const group = new THREE.Group();
     const trunkGeo = new THREE.CylinderGeometry(0.15, 0.2, 1.5, 6);
-    const trunkMat = new THREE.MeshLambertMaterial({ color: 0x8B6914 });
+    const trunkMat = new THREE.MeshToonMaterial({ color: 0x8B6914, gradientMap: this.toonGradient });
     const trunk = new THREE.Mesh(trunkGeo, trunkMat);
     trunk.position.y = 0.75;
     trunk.castShadow = true;
@@ -347,7 +482,7 @@ class Game {
       const r = 1.2 - i * 0.25;
       const h = 1.0 - i * 0.1;
       const leafGeo = new THREE.SphereGeometry(r, 8, 6);
-      const leafMat = new THREE.MeshLambertMaterial({ color: leafColor });
+      const leafMat = new THREE.MeshToonMaterial({ color: leafColor, gradientMap: this.toonGradient });
       const leaf = new THREE.Mesh(leafGeo, leafMat);
       leaf.position.y = 1.8 + i * 0.6;
       leaf.scale.y = 0.7;
@@ -370,10 +505,14 @@ class Game {
     stem.position.y = 0.2;
     group.add(stem);
 
-    // Petals
+    // Petals with emissive glow
     for (let i = 0; i < 5; i++) {
       const petalGeo = new THREE.SphereGeometry(0.12, 6, 4);
-      const petalMat = new THREE.MeshLambertMaterial({ color });
+      const petalMat = new THREE.MeshLambertMaterial({
+        color,
+        emissive: color,
+        emissiveIntensity: 0.15,
+      });
       const petal = new THREE.Mesh(petalGeo, petalMat);
       const angle = (i / 5) * Math.PI * 2;
       petal.position.set(Math.cos(angle) * 0.1, 0.45, Math.sin(angle) * 0.1);
@@ -383,7 +522,11 @@ class Game {
 
     // Center
     const centerGeo = new THREE.SphereGeometry(0.08, 6, 4);
-    const centerMat = new THREE.MeshLambertMaterial({ color: 0xFFEB3B });
+    const centerMat = new THREE.MeshLambertMaterial({
+      color: 0xFFEB3B,
+      emissive: 0xFFEB3B,
+      emissiveIntensity: 0.1,
+    });
     const center = new THREE.Mesh(centerGeo, centerMat);
     center.position.y = 0.45;
     group.add(center);
@@ -393,7 +536,7 @@ class Game {
 
   createRock(obj) {
     const geo = new THREE.DodecahedronGeometry(0.5, 0);
-    const mat = new THREE.MeshLambertMaterial({ color: 0x888888 });
+    const mat = new THREE.MeshToonMaterial({ color: 0x888888, gradientMap: this.toonGradient });
     const rock = new THREE.Mesh(geo, mat);
     rock.scale.y = 0.6;
     return rock;
@@ -406,17 +549,17 @@ class Game {
     const hc = houseColors[obj.variant % houseColors.length];
     const rc = roofColors[obj.variant % roofColors.length];
 
-    // Walls
+    // Walls (toon)
     const wallGeo = new THREE.BoxGeometry(3, 2.5, 3);
-    const wallMat = new THREE.MeshLambertMaterial({ color: hc });
+    const wallMat = new THREE.MeshToonMaterial({ color: hc, gradientMap: this.toonGradient });
     const walls = new THREE.Mesh(wallGeo, wallMat);
     walls.position.y = 1.25;
     walls.castShadow = true;
     group.add(walls);
 
-    // Roof
+    // Roof (toon)
     const roofGeo = new THREE.ConeGeometry(2.5, 1.8, 4);
-    const roofMat = new THREE.MeshLambertMaterial({ color: rc });
+    const roofMat = new THREE.MeshToonMaterial({ color: rc, gradientMap: this.toonGradient });
     const roof = new THREE.Mesh(roofGeo, roofMat);
     roof.position.y = 3.4;
     roof.rotation.y = Math.PI / 4;
@@ -517,15 +660,15 @@ class Game {
   createTownHall(obj) {
     const group = new THREE.Group();
 
-    // Main building
-    const wallMat = new THREE.MeshLambertMaterial({ color: 0xF5F5DC });
+    // Main building (toon)
+    const wallMat = new THREE.MeshToonMaterial({ color: 0xF5F5DC, gradientMap: this.toonGradient });
     const walls = new THREE.Mesh(new THREE.BoxGeometry(5, 4, 4), wallMat);
     walls.position.y = 2;
     walls.castShadow = true;
     group.add(walls);
 
-    // Roof
-    const roofMat = new THREE.MeshLambertMaterial({ color: 0x2F4F4F });
+    // Roof (toon)
+    const roofMat = new THREE.MeshToonMaterial({ color: 0x2F4F4F, gradientMap: this.toonGradient });
     const roof = new THREE.Mesh(new THREE.ConeGeometry(4, 2, 4), roofMat);
     roof.position.y = 6;
     roof.rotation.y = Math.PI / 4;
@@ -557,17 +700,17 @@ class Game {
     const group = new THREE.Group();
     const bodyColor = new THREE.Color(color);
 
-    // Body
+    // Body (toon)
     const bodyGeo = new THREE.CapsuleGeometry(0.35, 0.5, 8, 12);
-    const bodyMat = new THREE.MeshLambertMaterial({ color: bodyColor });
+    const bodyMat = new THREE.MeshToonMaterial({ color: bodyColor, gradientMap: this.toonGradient });
     const body = new THREE.Mesh(bodyGeo, bodyMat);
     body.position.y = 0.7;
     body.castShadow = true;
     group.add(body);
 
-    // Head
+    // Head (toon)
     const headGeo = new THREE.SphereGeometry(0.3, 10, 8);
-    const headMat = new THREE.MeshLambertMaterial({ color: bodyColor });
+    const headMat = new THREE.MeshToonMaterial({ color: bodyColor, gradientMap: this.toonGradient });
     const head = new THREE.Mesh(headGeo, headMat);
     head.position.set(0, 1.2, 0.15);
     head.castShadow = true;
@@ -592,7 +735,7 @@ class Game {
     group.add(nose);
 
     // Ears (varies by animal)
-    const earMat = new THREE.MeshLambertMaterial({ color: bodyColor.clone().multiplyScalar(0.85) });
+    const earMat = new THREE.MeshToonMaterial({ color: bodyColor.clone().multiplyScalar(0.85), gradientMap: this.toonGradient });
     if (animal === 'bunny') {
       // Long ears
       [-0.12, 0.12].forEach(x => {
@@ -625,7 +768,7 @@ class Game {
     }
 
     // Tail
-    const tailMat = new THREE.MeshLambertMaterial({ color: bodyColor.clone().multiplyScalar(0.9) });
+    const tailMat = new THREE.MeshToonMaterial({ color: bodyColor.clone().multiplyScalar(0.9), gradientMap: this.toonGradient });
     if (animal === 'bunny') {
       const tail = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), tailMat);
       tail.position.set(0, 0.6, -0.4);
@@ -797,6 +940,70 @@ class Game {
         this.showEmote(this.myId, emote);
       });
     });
+
+    // Touch controls
+    this._initTouchControls();
+  }
+
+  _initTouchControls() {
+    if (!IS_MOBILE) return;
+
+    const joystickZone = document.getElementById('joystickZone');
+    if (!joystickZone) return;
+
+    // Left half = virtual joystick
+    joystickZone.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const t = e.changedTouches[0];
+      this.touchJoystick.active = true;
+      this.touchJoystick.startX = t.clientX;
+      this.touchJoystick.startY = t.clientY;
+      this.touchJoystick.dx = 0;
+      this.touchJoystick.dy = 0;
+    }, { passive: false });
+
+    joystickZone.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      if (!this.touchJoystick.active) return;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - this.touchJoystick.startX;
+      const dy = t.clientY - this.touchJoystick.startY;
+      const deadzone = 15;
+      const maxDist = 60;
+
+      // Clamp
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const clamped = Math.min(dist, maxDist);
+      const angle = Math.atan2(dy, dx);
+      this.touchJoystick.dx = dist > deadzone ? (clamped / maxDist) * Math.cos(angle) : 0;
+      this.touchJoystick.dy = dist > deadzone ? (clamped / maxDist) * Math.sin(angle) : 0;
+    }, { passive: false });
+
+    joystickZone.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      this.touchJoystick.active = false;
+      this.touchJoystick.dx = 0;
+      this.touchJoystick.dy = 0;
+    }, { passive: false });
+
+    joystickZone.addEventListener('touchcancel', (e) => {
+      this.touchJoystick.active = false;
+      this.touchJoystick.dx = 0;
+      this.touchJoystick.dy = 0;
+    });
+
+    // Right half = quick emote (tap cycles through emotes)
+    let rightTapCount = 0;
+    const rightZone = document.createElement('div');
+    rightZone.style.cssText = 'position:fixed;bottom:0;right:0;width:50%;height:45%;z-index:5;touch-action:none;';
+    document.body.appendChild(rightZone);
+
+    rightZone.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      // Tap on right side triggers wave emote
+      this.socket.emit('emote', { emote: 'wave' });
+      this.showEmote(this.myId, 'wave');
+    }, { passive: false });
   }
 
   // ════════════════════════════════════════════════
@@ -925,11 +1132,12 @@ class Game {
     const target = this.cameraTarget || new THREE.Vector3();
     target.lerp(new THREE.Vector3(this.localPlayer.x, 0, this.localPlayer.z), LERP_SPEED * dt);
 
+    const camCfg = this.isPortrait ? CAMERA.portrait : CAMERA.landscape;
     const angle = CAMERA_ANGLE;
     this.camera.position.set(
-      target.x + Math.sin(angle) * CAMERA_DISTANCE,
-      CAMERA_HEIGHT,
-      target.z + Math.cos(angle) * CAMERA_DISTANCE
+      target.x + Math.sin(angle) * camCfg.distance,
+      camCfg.height,
+      target.z + Math.cos(angle) * camCfg.distance
     );
     this.camera.lookAt(target.x, 0, target.z);
   }
@@ -959,11 +1167,14 @@ class Game {
 
     this.sunLight.color.copy(lightColor);
 
-    // Sky color
+    // Sky color — match fog precisely
+    const fogDay = new THREE.Color(0x87CEEB);
+    const fogNight = new THREE.Color(0x0a0a2e);
+    const fogTwilight = new THREE.Color(0x2a1a4a);
     this.scene.fog.color.copy(
       sunY > 0
-        ? new THREE.Color(0x87CEEB).lerp(new THREE.Color(0x2a1a4a), Math.max(0, 1 - sunY * 3))
-        : new THREE.Color(0x0a0a2e)
+        ? fogDay.clone().lerp(fogTwilight, Math.max(0, 1 - sunY * 3))
+        : fogNight
     );
     this.renderer.setClearColor(this.scene.fog.color);
 
@@ -992,6 +1203,13 @@ class Game {
     this.updateCamera(dt);
     this.updateDayNight(dt);
 
+    // Rotate cloud layer
+    if (this.cloudMesh) {
+      this.cloudMesh.material.map.offset.x += dt * 0.002;
+      this.cloudMesh.material.map.offset.y += dt * 0.001;
+      this.cloudMesh.material.map.needsUpdate = false; // offset is auto-read
+    }
+
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -1005,10 +1223,22 @@ class Game {
     const camForward = new THREE.Vector3(-1, 0, -1).normalize();
     const camRight = new THREE.Vector3(1, 0, -1).normalize();
 
+    // Keyboard input
     if (this.input.w) moveDir.add(camForward);
     if (this.input.s) moveDir.sub(camForward);
     if (this.input.a) moveDir.sub(camRight);
     if (this.input.d) moveDir.add(camRight);
+
+    // Touch joystick input (additive)
+    if (this.touchJoystick.active && (this.touchJoystick.dx !== 0 || this.touchJoystick.dy !== 0)) {
+      // Convert touch delta to camera-relative movement
+      const jx = this.touchJoystick.dx;
+      const jy = this.touchJoystick.dy;
+      // jy < 0 = forward (up on screen), jy > 0 = backward
+      // jx < 0 = left, jx > 0 = right
+      moveDir.add(camForward.clone().multiplyScalar(-jy));
+      moveDir.add(camRight.clone().multiplyScalar(jx));
+    }
 
     if (moveDir.lengthSq() > 0) {
       moveDir.normalize();
