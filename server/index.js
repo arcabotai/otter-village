@@ -11,6 +11,15 @@ const __dirname = dirname(__filename);
 const app = express();
 app.use(cors());
 
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    players: players.size,
+    uptime: process.uptime(),
+    protocol: 'v1-world',
+  });
+});
+
 // Serve static client build in production
 app.use(express.static(join(__dirname, '../client/dist')));
 app.get('*', (req, res) => {
